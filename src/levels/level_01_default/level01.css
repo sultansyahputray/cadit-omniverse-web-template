@@ -1,0 +1,127 @@
+/* Level 01 Overview Specific Stylesheet */
+
+.level01-hud-panel {
+  position: absolute;
+  bottom: 24px;
+  left: 20px;
+  width: 320px;
+  padding: 16px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.level01-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+}
+
+.level01-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f0f6fc;
+  letter-spacing: 0.5px;
+}
+
+.level01-status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  letter-spacing: 0.5px;
+}
+
+.level01-status-badge.normal {
+  background: rgba(46, 160, 67, 0.2);
+  color: #3fb950;
+  border: 1px solid rgba(46, 160, 67, 0.4);
+}
+
+.level01-status-badge.warning {
+  background: rgba(210, 153, 34, 0.2);
+  color: #d29922;
+  border: 1px solid rgba(210, 153, 34, 0.4);
+}
+
+.level01-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.level01-metric-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.level01-metric-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #8b949e;
+  text-transform: uppercase;
+}
+
+.level01-metric-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f0f6fc;
+  margin-top: 2px;
+}
+
+.level01-unit {
+  font-size: 11px;
+  font-weight: 400;
+  color: #8b949e;
+  margin-left: 2px;
+}
+
+.level01-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* 3D Anchor Card Demo */
+.level01-anchor-card {
+  min-width: 130px;
+  padding: 8px 12px;
+  background: rgba(13, 17, 23, 0.88);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  border-radius: 6px;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.level01-anchor-card:hover {
+  border-color: #00e5ff;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+}
+
+.anchor-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.anchor-card-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: #00e5ff;
+  letter-spacing: 0.5px;
+}
+
+.anchor-card-body {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f0f6fc;
+}

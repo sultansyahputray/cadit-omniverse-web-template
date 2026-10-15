@@ -1,0 +1,18 @@
+{
+  "$comment": "source can be 'local', 'stream', or 'gfn'",
+  "source": "local",
+  "local": {
+    "server": "127.0.0.1",
+    "signalingPort": 49100,
+    "mediaPort": null
+  },
+  "stream": {
+    "appServer": "",
+    "streamServer": ""
+  },
+  "gfn": {
+    "catalogClientId": "",
+    "clientId": "",
+    "cmsId": 0
+  }
+}

@@ -1,0 +1,17 @@
+/* level_02_room Specific Stylesheet */
+
+.level_02_room-view-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.level_02_room-hud-card {
+  position: absolute;
+  bottom: 24px;
+  left: 20px;
+  width: 300px;
+  padding: 16px;
+  z-index: 30;
+  pointer-events: auto;
+}
