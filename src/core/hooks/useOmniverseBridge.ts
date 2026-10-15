@@ -145,18 +145,21 @@ export function useOmniverseBridge(options: UseOmniverseBridgeOptions = {}) {
   // Command: Navigate to level
   const navigateTo = useCallback(async (levelId: string, itemId?: string, extra: Record<string, any> = {}): Promise<boolean> => {
     try {
-      const response = await fetch(`${baseUrl}/api/level`, {
+      console.log(`[Bridge] Navigating to: ${levelId} via ${baseUrl}/api/navigate`);
+      const response = await fetch(`${baseUrl}/api/navigate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level_id: levelId, item_id: itemId, ...extra })
+        body: JSON.stringify({ level: levelId, level_id: levelId, item_id: itemId, ...extra })
       });
       const data: CommandResponse = await response.json();
+      console.log(`[Bridge] Navigate response:`, data);
       if (data.status === 'ok') {
         setActiveLevel(levelId);
         return true;
       }
       return false;
-    } catch {
+    } catch (err) {
+      console.error(`[Bridge] Navigate error:`, err);
       return false;
     }
   }, [baseUrl]);

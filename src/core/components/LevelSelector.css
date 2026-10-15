@@ -7,6 +7,7 @@
   z-index: 50;
   font-family: 'Inter', -apple-system, sans-serif;
   user-select: none;
+  pointer-events: auto; /* Required to receive click events over viewport overlay */
 }
 
 /* Trigger Button */
@@ -91,6 +92,7 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   padding: 6px;
+  pointer-events: auto;
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 12px rgba(0, 229, 255, 0.15);
   animation: dropdownFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -135,6 +137,7 @@
   padding: 8px 10px;
   color: #c9d1d9;
   cursor: pointer;
+  pointer-events: auto;
   text-align: left;
   transition: all 0.12s ease;
   width: 100%;

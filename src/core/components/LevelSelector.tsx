@@ -75,7 +75,11 @@ export const LevelSelector: React.FC<LevelSelectorProps> = ({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="selector-dropdown-menu" role="listbox">
+        <div
+          className="selector-dropdown-menu"
+          role="listbox"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <div className="dropdown-menu-caption">
             AVAILABLE LEVELS ({registeredLevels.length})
           </div>
@@ -91,7 +95,9 @@ export const LevelSelector: React.FC<LevelSelectorProps> = ({
                   role="option"
                   aria-selected={isSelected}
                   className={`dropdown-item ${isSelected ? 'selected' : ''}`}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log(`[LevelSelector] Navigating to: ${lvl.level_id}`);
                     onSelectLevel(lvl.level_id);
                     setIsOpen(false);
                   }}
