@@ -41,15 +41,27 @@ export function useOmniverseBridge(options: UseOmniverseBridgeOptions = {}) {
 
     let timerId: any = null;
     let consecutiveFailures = 0;
+    let isRequestInFlight = false;
+    let currentAbortController: AbortController | null = null;
 
     const pollTelemetry = async () => {
+      if (isRequestInFlight || !isMountedRef.current) return;
+      isRequestInFlight = true;
+
       try {
+        currentAbortController = new AbortController();
+        const timeoutId = setTimeout(() => currentAbortController?.abort(), 3000);
+
         const aspect = getClientAspect();
         const response = await fetch(`${baseUrl}/api/telemetry?aspect=${aspect}`, {
           method: 'GET',
-          headers: { 'Accept': 'application/json' },
-          signal: AbortSignal.timeout(1000)
+          headers: {
+            'Accept': 'application/json',
+            'Connection': 'close'
+          },
+          signal: currentAbortController.signal
         });
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           throw new Error(`HTTP error ${response.status}`);
@@ -64,7 +76,8 @@ export function useOmniverseBridge(options: UseOmniverseBridgeOptions = {}) {
           setFps(data.system?.fps || 60);
           setSelectedPrim(data.system?.selected_prim ?? null);
           setRegisteredLevels(data.system?.registered_levels || []);
-          setLevelTelemetry(data.level_telemetry || {});
+          const rawTelemetry = (data.level_telemetry as any)?.data ?? data.level_telemetry ?? {};
+          setLevelTelemetry(rawTelemetry);
           setProjections(data.projections || {});
         }
       } catch (err) {
@@ -78,6 +91,7 @@ export function useOmniverseBridge(options: UseOmniverseBridgeOptions = {}) {
           consecutiveFailures = 0;
         }
       } finally {
+        isRequestInFlight = false;
         if (isMountedRef.current) {
           timerId = setTimeout(pollTelemetry, pollingInterval);
         }
@@ -89,6 +103,7 @@ export function useOmniverseBridge(options: UseOmniverseBridgeOptions = {}) {
     return () => {
       isMountedRef.current = false;
       if (timerId) clearTimeout(timerId);
+      if (currentAbortController) currentAbortController.abort();
     };
   }, [baseUrl, enabled, getClientAspect, pollingInterval]);
 
