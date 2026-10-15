@@ -19,7 +19,9 @@ export function useOmniverseBridge(options: UseOmniverseBridgeOptions = {}) {
   const [activeLevel, setActiveLevel] = useState<string>('level_01_default');
   const [fps, setFps] = useState<number>(60);
   const [selectedPrim, setSelectedPrim] = useState<string | null>(null);
-  const [registeredLevels, setRegisteredLevels] = useState<Array<{ level_id: string; display_name: string; is_active: boolean }>>([]);
+  const [registeredLevels, setRegisteredLevels] = useState<Array<{ level_id: string; display_name: string; is_active: boolean }>>([
+    { level_id: 'level_01_default', display_name: 'Default Overview', is_active: true }
+  ]);
   const [levelTelemetry, setLevelTelemetry] = useState<Record<string, any>>({});
   const [projections, setProjections] = useState<Record<string, ScreenPosition>>({});
 
@@ -72,10 +74,43 @@ export function useOmniverseBridge(options: UseOmniverseBridgeOptions = {}) {
         if (isMountedRef.current) {
           consecutiveFailures = 0;
           setIsConnected(true);
-          setActiveLevel(data.active_level || 'level_01_default');
+          const currentLevel = data.active_level || 'level_01_default';
+          setActiveLevel(currentLevel);
           setFps(data.system?.fps || 60);
           setSelectedPrim(data.system?.selected_prim ?? null);
-          setRegisteredLevels(data.system?.registered_levels || []);
+
+          // Robust normalization of registered_levels (supports Dict[str, str] and Array)
+          const rawLevels = data.system?.registered_levels;
+          let parsedLevels: Array<{ level_id: string; display_name: string; is_active: boolean }> = [];
+          if (Array.isArray(rawLevels)) {
+            parsedLevels = rawLevels.map((lvl: any) => {
+              const id = typeof lvl === 'string' ? lvl : (lvl.level_id || lvl.id || '');
+              const name = typeof lvl === 'string' ? lvl : (lvl.display_name || lvl.name || id);
+              return {
+                level_id: id,
+                display_name: name,
+                is_active: id === currentLevel
+              };
+            });
+          } else if (rawLevels && typeof rawLevels === 'object') {
+            parsedLevels = Object.entries(rawLevels).map(([lvlId, dispName]) => ({
+              level_id: lvlId,
+              display_name: typeof dispName === 'string' ? dispName : ((dispName as any)?.display_name || lvlId),
+              is_active: lvlId === currentLevel
+            }));
+          }
+
+          if (parsedLevels.length > 0) {
+            setRegisteredLevels(parsedLevels);
+          } else {
+            setRegisteredLevels(prev => {
+              if (prev.length > 0) {
+                return prev.map(l => ({ ...l, is_active: l.level_id === currentLevel }));
+              }
+              return [{ level_id: currentLevel, display_name: currentLevel, is_active: true }];
+            });
+          }
+
           const rawTelemetry = (data.level_telemetry as any)?.data ?? data.level_telemetry ?? {};
           setLevelTelemetry(rawTelemetry);
           setProjections(data.projections || {});

@@ -3,6 +3,8 @@ import React from 'react';
 import { LEVEL_REGISTRY } from './levelRegistry';
 import { LevelViewProps } from '../types/level';
 
+import { CoordinateAnchor } from '../components/CoordinateAnchor';
+
 export interface LevelRouterProps extends LevelViewProps<any> {
   activeLevel: string;
 }
@@ -22,27 +24,41 @@ export const LevelRouter: React.FC<LevelRouterProps> = ({
   const ActiveComponent = LEVEL_REGISTRY[activeLevel];
 
   if (!ActiveComponent) {
+    // Dynamic Fallback: Clean 3D projection anchors for levels registered in Kit but without custom views
     return (
-      <div
-        className="cadit-glass-panel"
-        style={{
-          position: 'absolute',
-          bottom: '24px',
-          left: '20px',
-          padding: '16px 20px',
-          color: '#f0f6fc',
-          fontFamily: 'Inter, -apple-system, sans-serif',
-          zIndex: 30,
-          maxWidth: '360px'
-        }}
-      >
-        <div style={{ fontSize: '13px', fontWeight: 700, color: '#ffb020', marginBottom: '6px' }}>
-          LEVEL VIEW NOT FOUND
-        </div>
-        <div style={{ fontSize: '12px', color: '#8b949e', lineHeight: 1.4 }}>
-          No React view is registered for level <code style={{ color: '#00e5ff' }}>{activeLevel}</code>.
-          Run <code style={{ color: '#00e5ff' }}>add_web_level.bat {activeLevel}</code> to generate it automatically.
-        </div>
+      <div className="cadit-generic-level-root">
+        {Object.entries(projections).map(([key, pos]) => (
+          <CoordinateAnchor
+            key={key}
+            x={pos.x}
+            y={pos.y}
+            visible={pos.visible}
+            widthPct={pos.width}
+            enableZoomScale={pos.width != null}
+          >
+            <div
+              style={{
+                minWidth: '110px',
+                padding: '6px 10px',
+                background: 'rgba(13, 17, 23, 0.88)',
+                border: '1px solid rgba(0, 229, 255, 0.4)',
+                borderRadius: '6px',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.6)',
+                pointerEvents: 'auto',
+                cursor: 'pointer'
+              }}
+              onClick={() => selectPrim(key)}
+              title={`Click to select ${key} in USD stage`}
+            >
+              <div style={{ fontSize: '10px', fontWeight: 700, color: '#00e5ff' }}>
+                {key}
+              </div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#f0f6fc', marginTop: '2px' }}>
+                ONLINE
+              </div>
+            </div>
+          </CoordinateAnchor>
+        ))}
       </div>
     );
   }

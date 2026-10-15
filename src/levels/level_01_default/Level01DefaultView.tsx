@@ -3,35 +3,15 @@ import React from 'react';
 import { LevelViewProps } from '@/core/types/level';
 import { CoordinateAnchor } from '@/core/components/CoordinateAnchor';
 import { Level01Telemetry } from './types';
-import { OverviewStatsCard } from './components/OverviewStatsCard';
 import './level01.css';
 
 export const Level01DefaultView: React.FC<LevelViewProps<Level01Telemetry>> = ({
-  telemetry,
   projections,
-  setPrimColor,
-  restorePrimColor,
   selectPrim
 }) => {
-  const handleHighlight = () => {
-    // Highlight prim with neon cyan and emissive glow
-    setPrimColor('/World', [0.0, 0.9, 1.0], true, 4000.0, true, 1.5);
-  };
-
-  const handleResetHighlight = () => {
-    restorePrimColor('/World');
-  };
-
   return (
     <div className="level01-view-root">
-      {/* 1. Dedicated Level Sub-component */}
-      <OverviewStatsCard
-        telemetry={telemetry}
-        onHighlightFacility={handleHighlight}
-        onResetHighlight={handleResetHighlight}
-      />
-
-      {/* 2. Projected 3D-to-2D Coordinate Anchors */}
+      {/* Projected 3D-to-2D Coordinate Anchors */}
       {Object.entries(projections).map(([key, pos]) => {
         // If projection includes width, enable perspective zoom scaling automatically
         const hasWidth = pos.width != null && pos.width > 0;

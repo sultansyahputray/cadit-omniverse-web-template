@@ -50,7 +50,7 @@ export class OmniverseStreamViewer extends Component<
         const directConfig: DirectConfig = {
           videoElementId: 'remote-video',
           audioElementId: 'remote-audio',
-          authenticate: true,
+          authenticate: false,
           maxReconnects: 20,
           signalingServer: streamConfig.local?.server || '127.0.0.1',
           signalingPort: streamConfig.local?.signalingPort || 49100,
@@ -87,8 +87,13 @@ export class OmniverseStreamViewer extends Component<
       }
 
       AppStreamer.connect(streamProps)
-        .then(() => {
-          this.setState({ statusText: 'WebRTC handshaking established' });
+        .then((result: any) => {
+          if (result && result.status === 'success') {
+            this.setState({ streamReady: true, statusText: 'Live Stream Active' });
+            this.props.onStarted?.();
+          } else {
+            this.setState({ statusText: 'WebRTC handshaking established' });
+          }
         })
         .catch(err => {
           this.setState({
@@ -106,17 +111,28 @@ export class OmniverseStreamViewer extends Component<
     }
   }
 
-  componentWillUnmount() {
-    try {
-      AppStreamer.stop();
-      (AppStreamer as any)._stream = null;
-    } catch {
-      // Ignore cleanup error on teardown
+  componentDidUpdate(_prevProps: OmniverseStreamViewerProps, prevState: OmniverseStreamViewerState) {
+    if (prevState.streamReady === false && this.state.streamReady === true) {
+      const localPlayer = document.getElementById('remote-video') as HTMLVideoElement;
+      if (localPlayer) {
+        localPlayer.tabIndex = -1;
+        localPlayer.playsInline = true;
+        localPlayer.muted = true;
+        localPlayer.play().catch(e => console.log('Autoplay handled:', e));
+      }
     }
   }
 
-  private _onStart(message: StreamEvent) {
-    if (message.action === 'start' && message.status === 'success') {
+  static stop() {
+    try {
+      AppStreamer.stop();
+      (AppStreamer as any)._stream = null;
+    } catch {}
+  }
+
+  private _onStart(message: any) {
+    if (message.action === 'start' && message.status === 'success' && !this.state.streamReady) {
+      console.info('[WebRTC] Omniverse WebRTC streamReady');
       this.setState({ streamReady: true, statusText: 'Live Stream Active' });
       this.props.onStarted?.();
 
@@ -139,11 +155,11 @@ export class OmniverseStreamViewer extends Component<
   }
 
   private _onStop(message: StreamEvent) {
-    this.setState({ streamReady: false, statusText: 'Stream stopped' });
+    console.log('[WebRTC] Stream stopped:', message);
   }
 
   private _onTerminate(message: StreamEvent) {
-    this.setState({ streamReady: false, statusText: 'Stream session terminated' });
+    console.log('[WebRTC] Stream terminated:', message);
   }
 
   render() {
@@ -157,7 +173,7 @@ export class OmniverseStreamViewer extends Component<
           inset: 0,
           width: '100vw',
           height: '100vh',
-          backgroundColor: '#0a0d14',
+          backgroundColor: '#000000',
           overflow: 'hidden',
           zIndex: 0,
           ...this.props.style
@@ -170,18 +186,38 @@ export class OmniverseStreamViewer extends Component<
             inset: 0,
             width: '100%',
             height: '100%',
-            objectFit: 'cover',
-            visibility: streamReady ? 'visible' : 'hidden'
+            objectFit: 'cover'
           }}
           tabIndex={-1}
           playsInline
           muted
           autoPlay
+          onLoadedMetadata={() => {
+            if (!this.state.streamReady) {
+              this.setState({ streamReady: true, statusText: 'Live Stream Active' });
+              this.props.onStarted?.();
+            }
+          }}
+          onPlaying={() => {
+            if (!this.state.streamReady) {
+              this.setState({ streamReady: true, statusText: 'Live Stream Active' });
+              this.props.onStarted?.();
+            }
+          }}
         />
-        <audio id="remote-audio" muted autoPlay />
+        <audio id="remote-audio" muted />
+        <h3 style={{ visibility: 'hidden' }} id="message-display">...</h3>
 
         {!streamReady && (
           <div
+            onClick={() => {
+              const videoEl = document.getElementById('remote-video') as HTMLVideoElement;
+              if (videoEl) {
+                videoEl.play().catch(() => {});
+                this.setState({ streamReady: true, statusText: 'Live Stream Active' });
+                this.props.onStarted?.();
+              }
+            }}
             style={{
               position: 'absolute',
               inset: 0,
@@ -193,8 +229,10 @@ export class OmniverseStreamViewer extends Component<
               fontFamily: 'Inter, -apple-system, sans-serif',
               fontSize: '14px',
               letterSpacing: '0.5px',
-              backgroundColor: '#0a0d14',
-              zIndex: 1
+              backgroundColor: 'rgba(10, 13, 20, 0.75)',
+              zIndex: 1,
+              cursor: 'pointer',
+              backdropFilter: 'blur(4px)'
             }}
           >
             <div
@@ -210,7 +248,7 @@ export class OmniverseStreamViewer extends Component<
             />
             <span>{statusText}</span>
             <span style={{ fontSize: '11px', color: '#556575', marginTop: '6px' }}>
-              Port 49100 / Signalling Server
+              Port 49100 / Signalling Server (Click anywhere to activate)
             </span>
           </div>
         )}

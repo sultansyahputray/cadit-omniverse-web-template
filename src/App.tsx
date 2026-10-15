@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 CADIT. All rights reserved.
 import React from 'react';
 import { useOmniverseBridge } from '@/core/hooks/useOmniverseBridge';
-import { OmniverseStreamViewer } from '@/core/components/OmniverseStreamViewer';
+import { WebRTCViewerContainer } from '@/core/components/WebRTCViewerContainer';
 import { HUDHeader } from '@/core/components/HUDHeader';
 import { ViewCubeControls } from '@/core/components/ViewCubeControls';
 import { LevelRouter } from '@/core/router/LevelRouter';
@@ -12,8 +12,15 @@ export const App: React.FC = () => {
 
   return (
     <div className="cadit-app-root">
-      {/* 1. Underlying WebRTC Video Stream Layer */}
-      <OmniverseStreamViewer />
+      {/* 1. Underlying WebRTC Video Stream Layer (100% matched with web-complete-data-centre) */}
+      <WebRTCViewerContainer
+        server="127.0.0.1"
+        signalingPort={49100}
+        isInteractive={true}
+        onStreamStarted={() => {
+          console.log('[WebRTC] Omniverse Stream connected successfully!');
+        }}
+      />
 
       {/* 2. 3D-to-2D Projection & UI Overlay Layer */}
       <div className="cadit-viewport-overlay">

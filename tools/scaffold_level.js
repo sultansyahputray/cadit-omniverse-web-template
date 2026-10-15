@@ -95,36 +95,15 @@ const viewContent = `// SPDX-FileCopyrightText: Copyright (c) 2026 CADIT. All ri
 import React from 'react';
 import { LevelViewProps } from '@/core/types/level';
 import { CoordinateAnchor } from '@/core/components/CoordinateAnchor';
-import { Button } from '@/reusable';
 import { ${pascalName}Telemetry } from './types';
 import './${levelId}.css';
 
 export const ${viewName}: React.FC<LevelViewProps<${pascalName}Telemetry>> = ({
-  telemetry,
   projections,
-  setPrimColor,
-  restorePrimColor,
   selectPrim
 }) => {
   return (
     <div className="${levelId}-view-root">
-      {/* Level HUD Card */}
-      <div className="cadit-glass-panel ${levelId}-hud-card">
-        <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#00e5ff' }}>
-          ${pascalName.toUpperCase()} DASHBOARD
-        </h4>
-        <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#8b949e' }}>
-          Status: <strong style={{ color: '#f0f6fc' }}>{telemetry.status || 'Active'}</strong>
-        </p>
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setPrimColor('/World', [0, 0.9, 1], true)}
-        >
-          HIGHLIGHT LEVEL
-        </Button>
-      </div>
-
       {/* Pinned 3D Anchors */}
       {Object.entries(projections).map(([key, pos]) => (
         <CoordinateAnchor

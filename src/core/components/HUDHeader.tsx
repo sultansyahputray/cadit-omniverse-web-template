@@ -37,26 +37,37 @@ export const HUDHeader: React.FC<HUDHeaderProps> = ({
         </div>
       </div>
 
-      {/* Center: Level Breadcrumbs / Selector Tabs */}
+      {/* Center: Dynamic Level Breadcrumb Navigation Bar */}
       <div className="cadit-hud-center">
-        <div className="level-tabs-container">
-          {registeredLevels.length > 0 ? (
-            registeredLevels.map(lvl => (
-              <button
-                key={lvl.level_id}
-                className={`level-tab-btn ${lvl.level_id === activeLevel ? 'active' : ''}`}
-                onClick={() => onSelectLevel(lvl.level_id)}
-                title={`Switch to ${lvl.display_name}`}
-              >
-                {lvl.display_name}
-              </button>
-            ))
-          ) : (
-            <div className="level-tab-single active">
-              LEVEL: {activeLevel}
-            </div>
-          )}
-        </div>
+        <nav className="level-breadcrumbs-nav" aria-label="Level Navigation Breadcrumbs">
+          <div className="level-count-badge" title={`${registeredLevels.length} level terdeteksi di ekstensi Omniverse`}>
+            <span className="count-num">{registeredLevels.length}</span>
+            <span className="count-label">{registeredLevels.length === 1 ? 'LEVEL' : 'LEVELS'}</span>
+          </div>
+
+          <div className="breadcrumbs-list">
+            {registeredLevels.map((lvl, index) => {
+              const isActive = lvl.level_id === activeLevel;
+              const formattedIndex = String(index + 1).padStart(2, '0');
+
+              return (
+                <React.Fragment key={lvl.level_id}>
+                  {index > 0 && <span className="breadcrumb-separator">/</span>}
+                  <button
+                    type="button"
+                    className={`breadcrumb-btn ${isActive ? 'active' : ''}`}
+                    onClick={() => onSelectLevel(lvl.level_id)}
+                    title={`Pindah ke ${lvl.display_name} (${lvl.level_id})`}
+                  >
+                    <span className="breadcrumb-index">{formattedIndex}</span>
+                    <span className="breadcrumb-name">{lvl.display_name}</span>
+                    {isActive && <span className="breadcrumb-active-dot" />}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </nav>
       </div>
 
       {/* Right: Selected USD Prim Breadcrumb */}
