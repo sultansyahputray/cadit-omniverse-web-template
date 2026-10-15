@@ -52,11 +52,10 @@ cadit-omniverse-web-template/
 │   │       ├── bridge.ts                # Telemetry schemas & connection models
 │   │       └── level.ts                 # Generic LevelViewProps<T> contract
 │   ├── levels/
-│   │   ├── level_01_default/            # Default Level 1
-│   │   │   ├── Level01DefaultView.tsx   # Level entry view with 3D anchors
-│   │   │   ├── level01.css              # Level stylesheet
-│   │   │   └── types.ts                 # Level telemetry TypeScript contract
-│   │   └── level_02_room/               # Example multi-level folder
+│   │   └── level_01_default/            # Default Level 1
+│   │       ├── Level01DefaultView.tsx   # Level entry view with 3D anchors
+│   │       ├── level01.css              # Level stylesheet
+│   │       └── types.ts                 # Level telemetry TypeScript contract
 │   ├── reusable/                        # Global Reusable Components
 │   │   ├── index.ts                     # Central barrel export
 │   │   ├── Reusable.css                 # Glassmorphism design tokens & styles
