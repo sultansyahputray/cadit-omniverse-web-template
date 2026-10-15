@@ -39,11 +39,12 @@ cadit-omniverse-web-template/
 │   │   ├── hooks/
 │   │   │   └── useOmniverseBridge.ts   # Polling, telemetry, & command dispatchers
 │   │   ├── components/
-│   │   │   ├── OmniverseStreamViewer.tsx # WebRTC video stream container
-│   │   │   ├── CoordinateAnchor.tsx     # Pinned 3D-to-2D projection component
-│   │   │   ├── CoordinateAnchor.css     # Transform origins and transitions
-│   │   │   ├── HUDHeader.tsx            # Header status, FPS, & level switcher
-│   │   │   └── ViewCubeControls.tsx     # Camera angle presets (ISO, Top, Front, Side)
+│   │   │   ├── WebRTCViewerContainer.tsx # Fullscreen WebRTC livestream canvas
+│   │   │   ├── AppStream.tsx             # Low-level NVIDIA WebRTC streamer
+│   │   │   ├── LevelSelector.tsx         # Minimalist interactive level dropdown selector
+│   │   │   ├── LevelSelector.css         # Level dropdown styling & glassmorphism
+│   │   │   ├── CoordinateAnchor.tsx      # Pinned 3D-to-2D projection component
+│   │   │   └── CoordinateAnchor.css      # Transform origins and transitions
 │   │   ├── router/
 │   │   │   ├── LevelRouter.tsx          # Dynamic resolver for active level
 │   │   │   └── levelRegistry.ts         # Registered level mapping (auto-updated)
@@ -52,11 +53,9 @@ cadit-omniverse-web-template/
 │   │       └── level.ts                 # Generic LevelViewProps<T> contract
 │   ├── levels/
 │   │   ├── level_01_default/            # Default Level 1
-│   │   │   ├── Level01DefaultView.tsx   # Level entry view
+│   │   │   ├── Level01DefaultView.tsx   # Level entry view with 3D anchors
 │   │   │   ├── level01.css              # Level stylesheet
-│   │   │   ├── types.ts                 # Level telemetry TypeScript contract
-│   │   │   └── components/              # Level-specific sub-components
-│   │   │       └── OverviewStatsCard.tsx
+│   │   │   └── types.ts                 # Level telemetry TypeScript contract
 │   │   └── level_02_room/               # Example multi-level folder
 │   ├── reusable/                        # Global Reusable Components
 │   │   ├── index.ts                     # Central barrel export
