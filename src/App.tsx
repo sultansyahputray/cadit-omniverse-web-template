@@ -2,8 +2,7 @@
 import React from 'react';
 import { useOmniverseBridge } from '@/core/hooks/useOmniverseBridge';
 import { WebRTCViewerContainer } from '@/core/components/WebRTCViewerContainer';
-import { HUDHeader } from '@/core/components/HUDHeader';
-import { ViewCubeControls } from '@/core/components/ViewCubeControls';
+import { LevelSelector } from '@/core/components/LevelSelector';
 import { LevelRouter } from '@/core/router/LevelRouter';
 import './index.css';
 
@@ -22,22 +21,15 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* 2. 3D-to-2D Projection & UI Overlay Layer */}
+      {/* 2. 3D-to-2D Projection & Minimal Clean UI Layer */}
       <div className="cadit-viewport-overlay">
-        {/* Top Navigation & Status Header */}
-        <HUDHeader
-          title="CADIT DIGITAL TWIN"
+        {/* Minimal Interactive Level Transition Dropdown Selector */}
+        <LevelSelector
           activeLevel={bridge.activeLevel}
           registeredLevels={bridge.registeredLevels}
           isConnected={bridge.isConnected}
-          currentPort={bridge.currentPort}
-          fps={bridge.fps}
-          selectedPrim={bridge.selectedPrim}
           onSelectLevel={(levelId) => bridge.navigateTo(levelId)}
         />
-
-        {/* Quick Camera Preset Controls */}
-        <ViewCubeControls onSetCameraView={(viewName) => bridge.setCameraView(viewName, undefined, true)} />
 
         {/* Dynamic Multi-Level Content Router */}
         <LevelRouter
