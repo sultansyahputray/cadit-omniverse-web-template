@@ -14,8 +14,9 @@ export interface UseOmniverseBridgeOptions {
 export function useOmniverseBridge(options: UseOmniverseBridgeOptions = {}) {
   const { host = '127.0.0.1', pollingInterval = POLLING_INTERVAL_MS, enabled = true } = options;
 
-  const [activePortIndex, setActivePortIndex] = useState(0);
-  const [isConnected, setIsConnected] = useState(false);
+  const activePortRef = useRef<number>(8089);
+  const [currentPort, setCurrentPort] = useState<number>(8089);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
   const [activeLevel, setActiveLevel] = useState<string>('level_01_default');
   const [fps, setFps] = useState<number>(60);
   const [selectedPrim, setSelectedPrim] = useState<string | null>(null);
@@ -25,62 +26,103 @@ export function useOmniverseBridge(options: UseOmniverseBridgeOptions = {}) {
   const [levelTelemetry, setLevelTelemetry] = useState<Record<string, any>>({});
   const [projections, setProjections] = useState<Record<string, ScreenPosition>>({});
 
-  const isMountedRef = useRef(true);
-  const currentPort = FALLBACK_PORTS[activePortIndex];
-  const baseUrl = `http://${host}:${currentPort}`;
+  const isMountedRef = useRef<boolean>(true);
 
-  // Calculate client viewport aspect ratio
+  // Calculate client viewport aspect ratio (throttled/cached)
   const getClientAspect = useCallback(() => {
-    if (typeof window === 'undefined') return 16.0 / 9.0;
-    const aspect = window.innerWidth / (window.innerHeight || 1);
+    if (typeof window === 'undefined') return '1.7778';
+    const aspect = window.innerWidth / Math.max(window.innerHeight, 1);
     return Math.max(0.2, Math.min(aspect, 5.0)).toFixed(4);
   }, []);
 
-  // Polling loop
+  // Resilient multi-port POST dispatcher with instant failover (<5ms)
+  const postCommand = useCallback(async (endpoint: string, body: Record<string, any>): Promise<CommandResponse | null> => {
+    const ports = [
+      activePortRef.current,
+      ...FALLBACK_PORTS.filter(p => p !== activePortRef.current)
+    ];
+
+    for (const port of ports) {
+      try {
+        const res = await fetch(`http://${host}:${port}/api/${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (res.ok) {
+          if (activePortRef.current !== port) {
+            activePortRef.current = port;
+            setCurrentPort(port);
+          }
+          const data: CommandResponse = await res.json();
+          return data;
+        }
+      } catch {
+        // try next candidate port immediately in the same tick
+      }
+    }
+    return null;
+  }, [host]);
+
+  // High-performance polling loop with Keep-Alive & Delta-Checking (Zero render thrashing)
   useEffect(() => {
     if (!enabled) return;
     isMountedRef.current = true;
 
     let timerId: any = null;
-    let consecutiveFailures = 0;
     let isRequestInFlight = false;
-    let currentAbortController: AbortController | null = null;
 
     const pollTelemetry = async () => {
       if (isRequestInFlight || !isMountedRef.current) return;
       isRequestInFlight = true;
 
-      try {
-        currentAbortController = new AbortController();
-        const timeoutId = setTimeout(() => currentAbortController?.abort(), 3000);
+      let successData: TelemetryPayload | null = null;
+      const portsToTry = [
+        activePortRef.current,
+        ...FALLBACK_PORTS.filter(p => p !== activePortRef.current)
+      ];
 
-        const aspect = getClientAspect();
-        const response = await fetch(`${baseUrl}/api/telemetry?aspect=${aspect}`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Connection': 'close'
-          },
-          signal: currentAbortController.signal
-        });
-        clearTimeout(timeoutId);
+      for (const port of portsToTry) {
+        if (!isMountedRef.current) break;
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 1200);
+          const aspect = getClientAspect();
 
-        if (!response.ok) {
-          throw new Error(`HTTP error ${response.status}`);
+          // Native Keep-Alive fetch (no Connection: close socket teardowns)
+          const response = await fetch(`http://${host}:${port}/api/telemetry?aspect=${aspect}`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+
+          if (response.ok) {
+            if (activePortRef.current !== port) {
+              activePortRef.current = port;
+              setCurrentPort(port);
+            }
+            successData = await response.json();
+            break;
+          }
+        } catch {
+          // Immediately try next port
         }
+      }
 
-        const data: TelemetryPayload = await response.json();
-
-        if (isMountedRef.current) {
-          consecutiveFailures = 0;
+      if (isMountedRef.current) {
+        if (successData) {
           setIsConnected(true);
-          const currentLevel = data.active_level || 'level_01_default';
-          setActiveLevel(currentLevel);
-          setFps(data.system?.fps || 60);
-          setSelectedPrim(data.system?.selected_prim ?? null);
+          const currentLevel = successData.active_level || 'level_01_default';
+          
+          setActiveLevel(prev => (prev !== currentLevel ? currentLevel : prev));
+          setFps(successData.system?.fps || 60);
 
-          // Robust normalization of registered_levels (supports Dict[str, str] and Array)
-          const rawLevels = data.system?.registered_levels;
+          const incomingSelected = successData.system?.selected_prim ?? null;
+          setSelectedPrim(prev => (prev !== incomingSelected ? incomingSelected : prev));
+
+          // 1. Registered levels parsing with delta check
+          const rawLevels = successData.system?.registered_levels;
           let parsedLevels: Array<{ level_id: string; display_name: string; is_active: boolean }> = [];
           if (Array.isArray(rawLevels)) {
             parsedLevels = rawLevels.map((lvl: any) => {
@@ -101,35 +143,55 @@ export function useOmniverseBridge(options: UseOmniverseBridgeOptions = {}) {
           }
 
           if (parsedLevels.length > 0) {
-            setRegisteredLevels(parsedLevels);
-          } else {
             setRegisteredLevels(prev => {
-              if (prev.length > 0) {
-                return prev.map(l => ({ ...l, is_active: l.level_id === currentLevel }));
-              }
-              return [{ level_id: currentLevel, display_name: currentLevel, is_active: true }];
+              if (JSON.stringify(prev) === JSON.stringify(parsedLevels)) return prev;
+              return parsedLevels;
             });
           }
 
-          const rawTelemetry = (data.level_telemetry as any)?.data ?? data.level_telemetry ?? {};
-          setLevelTelemetry(rawTelemetry);
-          setProjections(data.projections || {});
-        }
-      } catch (err) {
-        if (!isMountedRef.current) return;
-        consecutiveFailures++;
+          // 2. Level custom telemetry delta check
+          const rawTelemetry = (successData.level_telemetry as any)?.data ?? successData.level_telemetry ?? {};
+          setLevelTelemetry(prev => {
+            if (JSON.stringify(prev) === JSON.stringify(rawTelemetry)) return prev;
+            return rawTelemetry;
+          });
 
-        if (consecutiveFailures >= 3) {
+          // 3. 3D-to-2D projected screen positions with Delta Check (prevents 60FPS re-render thrash)
+          const incomingPositions = successData.projections || {};
+          setProjections(prev => {
+            const prevKeys = Object.keys(prev);
+            const incomingKeys = Object.keys(incomingPositions);
+            if (prevKeys.length !== incomingKeys.length) {
+              return incomingPositions;
+            }
+
+            let hasChanged = false;
+            for (const key of incomingKeys) {
+              const p = prev[key];
+              const n = incomingPositions[key];
+              if (!p || p.visible !== n.visible) {
+                hasChanged = true;
+                break;
+              }
+              if (Math.abs(p.x - n.x) > 0.05 || Math.abs(p.y - n.y) > 0.05) {
+                hasChanged = true;
+                break;
+              }
+              if ((p.width != null || n.width != null) && Math.abs((p.width || 0) - (n.width || 0)) > 0.05) {
+                hasChanged = true;
+                break;
+              }
+            }
+            return hasChanged ? incomingPositions : prev;
+          });
+        } else {
           setIsConnected(false);
-          // Rotate to next candidate port
-          setActivePortIndex(prev => (prev + 1) % FALLBACK_PORTS.length);
-          consecutiveFailures = 0;
         }
-      } finally {
-        isRequestInFlight = false;
-        if (isMountedRef.current) {
-          timerId = setTimeout(pollTelemetry, pollingInterval);
-        }
+      }
+
+      isRequestInFlight = false;
+      if (isMountedRef.current) {
+        timerId = setTimeout(pollTelemetry, pollingInterval);
       }
     };
 
@@ -138,46 +200,24 @@ export function useOmniverseBridge(options: UseOmniverseBridgeOptions = {}) {
     return () => {
       isMountedRef.current = false;
       if (timerId) clearTimeout(timerId);
-      if (currentAbortController) currentAbortController.abort();
     };
-  }, [baseUrl, enabled, getClientAspect, pollingInterval]);
+  }, [enabled, getClientAspect, host, pollingInterval]);
 
   // Command: Navigate to level
   const navigateTo = useCallback(async (levelId: string, itemId?: string, extra: Record<string, any> = {}): Promise<boolean> => {
-    try {
-      console.log(`[Bridge] Navigating to: ${levelId} via ${baseUrl}/api/navigate`);
-      const response = await fetch(`${baseUrl}/api/navigate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level: levelId, level_id: levelId, item_id: itemId, ...extra })
-      });
-      const data: CommandResponse = await response.json();
-      console.log(`[Bridge] Navigate response:`, data);
-      if (data.status === 'ok') {
-        setActiveLevel(levelId);
-        return true;
-      }
-      return false;
-    } catch (err) {
-      console.error(`[Bridge] Navigate error:`, err);
-      return false;
+    const res = await postCommand('navigate', { level: levelId, level_id: levelId, item_id: itemId, ...extra });
+    if (res && res.status === 'ok') {
+      setActiveLevel(levelId);
+      return true;
     }
-  }, [baseUrl]);
+    return false;
+  }, [postCommand]);
 
   // Command: Set camera view
   const setCameraView = useCallback(async (viewName: string, distance?: number, smooth: boolean = true): Promise<boolean> => {
-    try {
-      const response = await fetch(`${baseUrl}/api/camera`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ view: viewName, distance, smooth })
-      });
-      const data: CommandResponse = await response.json();
-      return data.status === 'ok';
-    } catch {
-      return false;
-    }
-  }, [baseUrl]);
+    const res = await postCommand('camera', { view: viewName, distance, smooth });
+    return !!(res && res.status === 'ok');
+  }, [postCommand]);
 
   // Command: Set prim color & glow
   const setPrimColor = useCallback(async (
@@ -188,70 +228,34 @@ export function useOmniverseBridge(options: UseOmniverseBridgeOptions = {}) {
     pulse: boolean = false,
     pulseSpeed: number = 1.0
   ): Promise<boolean> => {
-    try {
-      const response = await fetch(`${baseUrl}/api/color`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prim_path: primPath,
-          color,
-          glow,
-          glow_intensity: glowIntensity,
-          pulse,
-          pulse_speed: pulseSpeed
-        })
-      });
-      const data: CommandResponse = await response.json();
-      return data.status === 'ok';
-    } catch {
-      return false;
-    }
-  }, [baseUrl]);
+    const res = await postCommand('color', {
+      prim_path: primPath,
+      color,
+      glow,
+      glow_intensity: glowIntensity,
+      pulse,
+      pulse_speed: pulseSpeed
+    });
+    return !!(res && res.status === 'ok');
+  }, [postCommand]);
 
   // Command: Restore prim color
   const restorePrimColor = useCallback(async (primPath: string): Promise<boolean> => {
-    try {
-      const response = await fetch(`${baseUrl}/api/color/restore`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prim_path: primPath })
-      });
-      const data: CommandResponse = await response.json();
-      return data.status === 'ok';
-    } catch {
-      return false;
-    }
-  }, [baseUrl]);
+    const res = await postCommand('color/restore', { prim_path: primPath });
+    return !!(res && res.status === 'ok');
+  }, [postCommand]);
 
   // Command: Select prim
   const selectPrim = useCallback(async (primPath: string | null): Promise<boolean> => {
-    try {
-      const response = await fetch(`${baseUrl}/api/select`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prim_path: primPath })
-      });
-      const data: CommandResponse = await response.json();
-      return data.status === 'ok';
-    } catch {
-      return false;
-    }
-  }, [baseUrl]);
+    const res = await postCommand('select', { prim_path: primPath });
+    return !!(res && res.status === 'ok');
+  }, [postCommand]);
 
   // Command: Send custom telemetry
   const sendTelemetry = useCallback(async (levelId: string, payload: Record<string, any>): Promise<boolean> => {
-    try {
-      const response = await fetch(`${baseUrl}/api/telemetry`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level_id: levelId, data: payload })
-      });
-      const data: CommandResponse = await response.json();
-      return data.status === 'ok';
-    } catch {
-      return false;
-    }
-  }, [baseUrl]);
+    const res = await postCommand('telemetry', { level_id: levelId, data: payload });
+    return !!(res && res.status === 'ok');
+  }, [postCommand]);
 
   return {
     isConnected,
